@@ -1,0 +1,82 @@
+config ACCESS_FS
+	tristate "Accessfs support (Experimental)"
+	depends on EXPERIMENTAL
+	default n
+	help
+	  This is a new file system to manage permissions. It is not very
+	  useful on its own. You need to enable other options below.
+
+	  The recommended mount point for this file-system is /proc/access,
+	  which will appear automatically in the /proc filesystem.
+
+	  If you're unsure, say N.
+
+config ACCESSFS_USER_PORTS
+	tristate "User permission based IP ports"
+	depends on ACCESS_FS
+	select NET_HOOKS
+	default n
+	help
+	  If you say Y here, you will be able to control access to IP ports
+	  based on user-/groupid. For this to work, you must say Y
+	  to CONFIG_NET_HOOKS.
+
+	  With this option, there's no need anymore to run internet daemons
+	  as root. You can individually configure which user/program can bind to
+	  protected ports (by default, below 1024).
+
+	  For example, you can say, user www is allowed to bind to port 80 or
+	  user mail is allowed to bind to port 25. Then, you can run apache as
+	  user www and sendmail as user mail. Now, you don't have to rely on
+	  apache or sendmail giving up superuser rights to enhance security.
+
+	  To use this option, you need to mount the access file system
+	  and do a chown on the appropriate ports:
+
+	  # mount -t accessfs none /proc/access
+	  # chown www /proc/access/net/ip/bind/80
+	  # chown mail /proc/access/net/ip/bind/25
+
+	  You can grant access to a group for individual ports as well. Just say:
+
+	  # chgrp lp /proc/access/net/ip/bind/515
+	  # chown g+x /proc/access/net/ip/bind/515
+
+	  If you're unsure, say N.
+
+config ACCESSFS_PROT_SOCK
+	int "Range of protected ports (1024-65536)"
+	depends on ACCESSFS_USER_PORTS
+	default 1024
+	help
+	  Here you can extend the range of protected ports. This is
+	  from 1-1023 inclusive on normal unix systems. One use for this
+	  could be to reserve ports for X11 (port 6000) or database
+	  servers (port 3306 for mysql), so nobody else could grab this port.
+	  The default permission for extended ports is --x--x--x.
+
+	  If you build this as a module, you can specify the range of
+	  protected ports at module load time (max_prot_sock).
+
+	  If you're unsure, say 1024.
+
+config ACCESSFS_USER_CAPABILITIES
+	tristate "User permission based capabilities"
+	depends on ACCESS_FS
+	select SECURITY
+	default n
+	help
+	  If you say Y here, you will be able to grant capabilities based on
+	  user-/groupid (root by default). For this to work, you must say M or
+	  N to CONFIG_SECURITY_CAPABILITIES.
+
+	  For example you can create a group raw and change the capability
+	  net_raw to this group:
+
+	  # chgrp raw /proc/access/capabilities/net_raw
+	  # chmod ug+x /proc/access/capabilities/net_raw
+	  # chgrp raw /sbin/ping
+	  # chmod u-s /sbin/ping; chmod g+s /sbin/ping
+
+	  If you're unsure, say N.
+

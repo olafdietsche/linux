@@ -1229,6 +1229,7 @@ config QNX4FS_RW
 	  It's currently broken, so for now:
 	  answer N.
 
+source "fs/accessfs/Kconfig"
 
 
 config SYSV_FS

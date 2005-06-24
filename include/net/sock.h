@@ -1297,4 +1297,21 @@ static inline int siocdevprivate_ioctl(unsigned int fd, unsigned int cmd, unsign
 }
 #endif
 
+/* Networking hooks */
+#ifdef	CONFIG_NET_HOOKS
+struct net_hook_operations {
+	int	(*ip_prot_sock)(struct socket *sock,
+				struct sockaddr *uaddr, int addr_len);
+	int	(*ip6_prot_sock)(struct socket *sock,
+				 struct sockaddr *uaddr, int addr_len);
+};
+
+extern struct net_hook_operations	*net_ops;
+
+extern int default_ip_prot_sock(struct socket *sock, struct sockaddr *uaddr, int addr_len);
+extern int default_ip6_prot_sock(struct socket *sock, struct sockaddr *uaddr, int addr_len);
+extern void net_hooks_register(struct net_hook_operations *ops);
+extern void net_hooks_unregister(struct net_hook_operations *ops);
+#endif
+
 #endif	/* _SOCK_H */

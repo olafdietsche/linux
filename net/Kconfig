@@ -96,6 +96,17 @@ config INET
 
 source "net/ipv4/Kconfig"
 
+config NET_HOOKS
+	bool "IP: Networking hooks (Experimental)"
+	depends on INET && EXPERIMENTAL
+	default n
+	help
+	  This option enables other kernel parts or modules to hook into the
+	  networking area and provide fine grained control over the access to
+	  IP ports.
+
+	  If you're unsure, say N.
+
 #   IPv6 as module will cause a CRASH if you try to unload it
 config IPV6
 	tristate "The IPv6 protocol"
