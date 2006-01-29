@@ -46,6 +46,7 @@ obj-$(CONFIG_IP_DCCP)		+= dccp/
 obj-$(CONFIG_IP_SCTP)		+= sctp/
 obj-$(CONFIG_NET_HOOKS)		+= hooks.o
 obj-$(CONFIG_IEEE80211)		+= ieee80211/
+obj-$(CONFIG_TIPC)		+= tipc/
 
 ifeq ($(CONFIG_NET),y)
 obj-$(CONFIG_SYSCTL)		+= sysctl_net.o
