@@ -260,11 +260,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		return -EINVAL;
 
 	snum = ntohs(addr->sin6_port);
-#ifdef	CONFIG_NET_HOOKS
-	if (net_ops->ip6_prot_sock(sock, uaddr, addr_len))
-#else
-	if (snum && snum < PROT_SOCK && !capable(CAP_NET_BIND_SERVICE))
-#endif
+	if (ip6_prot_sock(sock, uaddr, addr_len))
 		return -EACCES;
 
 	lock_sock(sk);

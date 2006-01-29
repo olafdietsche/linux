@@ -40,10 +40,4 @@ extern struct accessfs_direntry *accessfs_make_dirpath(const char *name);
 extern int accessfs_register(struct accessfs_direntry *dir, const char *name, struct access_attr *attr);
 extern void accessfs_unregister(struct accessfs_direntry *dir, const char *name);
 
-#if  CONFIG_ACCESSFS_PROT_SOCK < PROT_SOCK
-#define CONFIG_ACCESSFS_PROT_SOCK	PROT_SOCK
-#elseif CONFIG_ACCESSFS_PROT_SOCK > 65536
-#define CONFIG_ACCESSFS_PROT_SOCK	65536
-#endif
-
 #endif

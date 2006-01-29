@@ -1,4 +1,4 @@
-/* Copyright (c) 2002 Olaf Dietsche
+/* Copyright (c) 2002-2006 Olaf Dietsche
  *
  * User based capabilities for Linux.
  */
@@ -8,7 +8,6 @@
 #include <linux/module.h>
 #include <linux/security.h>
 
-static struct access_attr caps[29];
 static const char *names[] = {
 	"chown",
 	"dac_override",
@@ -41,6 +40,8 @@ static const char *names[] = {
 	"lease"
 };
 
+static struct access_attr caps[ARRAY_SIZE(names)];
+
 static int accessfs_capable(struct task_struct *tsk, int cap)
 {
 	if (accessfs_permitted(&caps[cap], MAY_EXEC)) {
@@ -60,9 +61,8 @@ static struct security_operations accessfs_security_ops = {
 static void unregister_capabilities(struct accessfs_direntry *dir, int n)
 {
 	int	i;
-	for (i = 0; i < n; ++i) {
+	for (i = 0; i < n; ++i)
 		accessfs_unregister(dir, names[i]);
-	}
 }
 
 static int __init init_capabilities(void)
@@ -73,7 +73,7 @@ static int __init init_capabilities(void)
 	if (dir == 0)
 		return -ENOTDIR;
 
-	for (i = 0; i < sizeof(caps) / sizeof(caps[0]); ++i) {
+	for (i = 0; i < ARRAY_SIZE(caps); ++i) {
 		caps[i].uid = 0;
 		caps[i].gid = 0;
 		caps[i].mode = S_IXUSR;
@@ -86,7 +86,7 @@ static int __init init_capabilities(void)
 
 	err = register_security(&accessfs_security_ops);
 	if (err != 0)
-		unregister_capabilities(dir, sizeof(names) / sizeof(names[0]));
+		unregister_capabilities(dir, ARRAY_SIZE(names));
 
 	return err;
 }
@@ -96,7 +96,7 @@ static void __exit exit_capabilities(void)
 	struct accessfs_direntry *dir;
 	dir = accessfs_make_dirpath("capabilities");
 	unregister_security(&accessfs_security_ops);
-	unregister_capabilities(dir, sizeof(names) / sizeof(names[0]));
+	unregister_capabilities(dir, ARRAY_SIZE(names));
 }
 
 module_init(init_capabilities)

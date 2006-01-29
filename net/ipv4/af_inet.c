@@ -431,11 +431,7 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 	snum = ntohs(addr->sin_port);
 	err = -EACCES;
-#ifdef	CONFIG_NET_HOOKS
-	if (net_ops->ip_prot_sock(sock, uaddr, addr_len))
-#else
-	if (snum && snum < PROT_SOCK && !capable(CAP_NET_BIND_SERVICE))
-#endif
+	if (ip_prot_sock(sock, uaddr, addr_len))
 		goto out;
 
 	/*      We keep a pair of addresses. rcv_saddr is the one

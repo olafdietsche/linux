@@ -1407,6 +1407,10 @@ static inline int siocdevprivate_ioctl(unsigned int fd, unsigned int cmd, unsign
 #endif
 
 /* Networking hooks */
+extern int default_ip_prot_sock(struct socket *sock, struct sockaddr *uaddr,
+				int addr_len);
+extern int default_ip6_prot_sock(struct socket *sock, struct sockaddr *uaddr,
+				 int addr_len);
 #ifdef	CONFIG_NET_HOOKS
 struct net_hook_operations {
 	int	(*ip_prot_sock)(struct socket *sock,
@@ -1417,10 +1421,32 @@ struct net_hook_operations {
 
 extern struct net_hook_operations	*net_ops;
 
-extern int default_ip_prot_sock(struct socket *sock, struct sockaddr *uaddr, int addr_len);
-extern int default_ip6_prot_sock(struct socket *sock, struct sockaddr *uaddr, int addr_len);
 extern void net_hooks_register(struct net_hook_operations *ops);
 extern void net_hooks_unregister(struct net_hook_operations *ops);
+
+static inline int ip_prot_sock(struct socket *sock, struct sockaddr *uaddr,
+			       int addr_len)
+{
+	return net_ops->ip_prot_sock(sock, uaddr, addr_len);
+}
+
+static inline int ip6_prot_sock(struct socket *sock, struct sockaddr *uaddr,
+				int addr_len)
+{
+	return net_ops->ip6_prot_sock(sock, uaddr, addr_len);
+}
+#else
+static inline int ip_prot_sock(struct socket *sock, struct sockaddr *uaddr,
+			       int addr_len)
+{
+	return default_ip_prot_sock(sock, uaddr, addr_len);
+}
+
+static inline int ip6_prot_sock(struct socket *sock, struct sockaddr *uaddr,
+				int addr_len)
+{
+	return default_ip6_prot_sock(sock, uaddr, addr_len);
+}
 #endif
 
 extern void sk_init(void);

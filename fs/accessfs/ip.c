@@ -1,4 +1,4 @@
-/* Copyright (c) 2002 Olaf Dietsche
+/* Copyright (c) 2002-2006 Olaf Dietsche
  *
  * User permission based port access for Linux.
  */
@@ -27,7 +27,6 @@ static int accessfs_ip_prot_sock(struct socket *sock,
 static int accessfs_ip6_prot_sock(struct socket *sock,
 				  struct sockaddr *uaddr, int addr_len)
 {
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *) uaddr;
 	unsigned short snum = ntohs(addr->sin6_port);
 	if (snum && snum < max_prot_sock
@@ -36,9 +35,6 @@ static int accessfs_ip6_prot_sock(struct socket *sock,
 		return -EACCES;
 
 	return 0;
-#else
-	return -EACCES;
-#endif
 }
 
 static struct net_hook_operations ip_net_ops = {
@@ -50,8 +46,15 @@ static int __init init_ip(void)
 {
 	struct accessfs_direntry *dir = accessfs_make_dirpath("net/ip/bind");
 	int i;
-	bind_to_port = kmalloc(max_prot_sock * sizeof(*bind_to_port), GFP_KERNEL);
-	if (bind_to_port == 0)
+
+	if (max_prot_sock < PROT_SOCK)
+		max_prot_sock = PROT_SOCK;
+	else if (max_prot_sock > 65536)
+		max_prot_sock = 65536;
+
+	bind_to_port = kmalloc(max_prot_sock * sizeof(*bind_to_port),
+			       GFP_KERNEL);
+	if (bind_to_port == NULL)
 		return -ENOMEM;
 
 	for (i = 1; i < max_prot_sock; ++i) {
@@ -78,7 +81,7 @@ static void __exit exit_ip(void)
 		accessfs_unregister(dir, buf);
 	}
 
-	if (bind_to_port != 0)
+	if (bind_to_port != NULL)
 		kfree(bind_to_port);
 }
 

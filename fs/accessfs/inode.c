@@ -1,4 +1,4 @@
-/* Copyright (c) 2001 Olaf Dietsche
+/* Copyright (c) 2001-2006 Olaf Dietsche
  *
  * Access permission filesystem for Linux.
  *
@@ -28,33 +28,32 @@
 
 #define ACCESSFS_MAGIC	0x3c1d36e7
 
-#ifdef CONFIG_PROC_FS           
 static struct proc_dir_entry *mountdir = NULL;
-#endif
 
-static DECLARE_MUTEX(accessfs_sem);
+static DEFINE_MUTEX(accessfs_sem);
 
 static struct inode_operations accessfs_inode_operations;
 static struct file_operations accessfs_dir_file_operations;
 static struct inode_operations accessfs_dir_inode_operations;
 
-static inline void accessfs_readdir_aux(struct file *filp, struct accessfs_direntry *dir, int start, void *dirent, filldir_t filldir)
+static inline void accessfs_readdir_aux(struct file *filp,
+					struct accessfs_direntry *dir,
+					int start, void *dirent,
+					filldir_t filldir)
 {
 	struct list_head *list;
-	int i;
-
-	list = dir->children.next;
-	for (i = 2; i < start && list != &dir->children; ++i)
-		list = list->next;
-
-	while (list != &dir->children) {
+	int i = 2;
+	list_for_each(list, &dir->children) {
 		struct accessfs_entry *de;
+		if (i++ < start)
+			continue;
+
 		de = list_entry(list, struct accessfs_entry, siblings);
-		if (filldir(dirent, de->name, strlen(de->name), filp->f_pos, de->ino, DT_UNKNOWN) < 0)
+		if (filldir(dirent, de->name, strlen(de->name), filp->f_pos,
+			    de->ino, DT_UNKNOWN) < 0)
 			break;
 
 		++filp->f_pos;
-		list = list->next;
 	}
 }
 
@@ -67,31 +66,34 @@ static int accessfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	i = filp->f_pos;
 	switch (i) {
 	case 0:
-		if (filldir(dirent, ".", 1, i, dentry->d_inode->i_ino, DT_DIR) < 0)
+		if (filldir(dirent, ".", 1, i, dentry->d_inode->i_ino,
+			    DT_DIR) < 0)
 			break;
 
 		++i;
 		++filp->f_pos;
 		/* NO break; */
 	case 1:
-		if (filldir(dirent, "..", 2, i, dentry->d_parent->d_inode->i_ino, DT_DIR) < 0)
+		if (filldir(dirent, "..", 2, i,
+			    dentry->d_parent->d_inode->i_ino, DT_DIR) < 0)
 			break;
 
 		++i;
 		++filp->f_pos;
 		/* NO break; */
 	default:
-		down(&accessfs_sem);
-		dir = (struct accessfs_direntry *) dentry->d_inode->u.generic_ip;
+		mutex_lock(&accessfs_sem);
+		dir = dentry->d_inode->u.generic_ip;
 		accessfs_readdir_aux(filp, dir, i, dirent, filldir);
-		up(&accessfs_sem);
+		mutex_unlock(&accessfs_sem);
 		break;
 	}
 
 	return 0;
 }
 
-static struct accessfs_entry *accessfs_lookup_entry(struct accessfs_entry *pe, const char *name, int len)
+static struct accessfs_entry *accessfs_lookup_entry(struct accessfs_entry *pe,
+						    const char *name, int len)
 {
 	struct list_head *list;
 	struct accessfs_direntry *dir;
@@ -110,13 +112,15 @@ static struct accessfs_entry *accessfs_lookup_entry(struct accessfs_entry *pe, c
 	return de;
 }
 
-static struct dentry *accessfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
+static struct dentry *accessfs_lookup(struct inode *dir, struct dentry *dentry,
+				      struct nameidata *nd)
 {
 	struct inode *inode = NULL;
 	struct accessfs_entry *pe;
-	down(&accessfs_sem);
-	pe = accessfs_lookup_entry(dir->u.generic_ip, dentry->d_name.name, dentry->d_name.len);
-	up(&accessfs_sem);
+	mutex_lock(&accessfs_sem);
+	pe = accessfs_lookup_entry(dir->u.generic_ip, dentry->d_name.name,
+				   dentry->d_name.len);
+	mutex_unlock(&accessfs_sem);
 	if (pe)
 		inode = iget(dir->i_sb, pe->ino);
 
@@ -164,11 +168,11 @@ static struct inode *accessfs_get_root_inode(struct super_block *sb)
 {
 	struct inode *inode = new_inode(sb);
 	if (inode) {
-		down(&accessfs_sem);
+		mutex_lock(&accessfs_sem);
 /* 		inode->i_ino = accessfs_rootdir.node.ino; */
 		accessfs_init_inode(inode, &accessfs_rootdir.node);
 		accessfs_rootdir.node.ino = inode->i_ino;
-		up(&accessfs_sem);
+		mutex_unlock(&accessfs_sem);
 	}
 
 	return inode;
@@ -176,7 +180,9 @@ static struct inode *accessfs_get_root_inode(struct super_block *sb)
 
 static LIST_HEAD(hash);
 
-static int accessfs_node_init(struct accessfs_direntry *parent, struct accessfs_entry *de, const char *name, size_t len, struct access_attr *attr, mode_t mode)
+static int accessfs_node_init(struct accessfs_direntry *parent,
+			      struct accessfs_entry *de, const char *name,
+			      size_t len, struct access_attr *attr, mode_t mode)
 {
 	static unsigned long ino = 1;
 	de->name = kmalloc(len + 1, GFP_KERNEL);
@@ -196,18 +202,21 @@ static int accessfs_node_init(struct accessfs_direntry *parent, struct accessfs_
 	return 0;
 }
 
-static int accessfs_mknod(struct accessfs_direntry *dir, const char *name, struct access_attr *attr)
+static int accessfs_mknod(struct accessfs_direntry *dir, const char *name,
+			  struct access_attr *attr)
 {
 	struct accessfs_entry *pe;
 	pe = kmalloc(sizeof(struct accessfs_entry), GFP_KERNEL);
 	if (pe == NULL)
 		return -ENOMEM;
 
-	accessfs_node_init(dir, pe, name, strlen(name), attr, S_IFREG | attr->mode);
+	accessfs_node_init(dir, pe, name, strlen(name), attr,
+			   S_IFREG | attr->mode);
 	return 0;
 }
 
-static struct accessfs_direntry	*accessfs_mkdir(struct accessfs_direntry *parent, const char *name, size_t len)
+static struct accessfs_direntry	*accessfs_mkdir(struct accessfs_direntry *parent,
+						const char *name, size_t len)
 {
 	int err;
 	struct accessfs_direntry *dir;
@@ -217,7 +226,8 @@ static struct accessfs_direntry	*accessfs_mkdir(struct accessfs_direntry *parent
 
 	dir->parent = parent;
 	INIT_LIST_HEAD(&dir->children);
-	err = accessfs_node_init(parent, &dir->node, name, len, &dir->attr, S_IFDIR | 0755);
+	err = accessfs_node_init(parent, &dir->node, name, len, &dir->attr,
+				 S_IFDIR | 0755);
 	if (err) {
 		kfree(dir);
 		dir = 0;
@@ -230,7 +240,7 @@ struct accessfs_direntry *accessfs_make_dirpath(const char *name)
 {
 	struct accessfs_direntry *dir = &accessfs_rootdir;
 	const char *slash;
-	down(&accessfs_sem);
+	mutex_lock(&accessfs_sem);
 	do {
 		struct accessfs_entry *de;
 		size_t len;
@@ -254,7 +264,7 @@ struct accessfs_direntry *accessfs_make_dirpath(const char *name)
 		name = slash  + 1;
 	} while (slash != NULL);
 
-	up(&accessfs_sem);
+	mutex_unlock(&accessfs_sem);
 	return dir;
 }
 
@@ -285,7 +295,7 @@ static void accessfs_read_inode(struct inode *inode)
 {
 	ino_t	ino = inode->i_ino;
 	struct list_head	*list;
-	down(&accessfs_sem);
+	mutex_lock(&accessfs_sem);
 	list_for_each(list, &hash) {
 		struct accessfs_entry *pe;
 		pe = list_entry(list, struct accessfs_entry, hash);
@@ -295,7 +305,7 @@ static void accessfs_read_inode(struct inode *inode)
 		}
 	}
 
-	up(&accessfs_sem);
+	mutex_unlock(&accessfs_sem);
 }
 
 static struct inode_operations accessfs_inode_operations = {
@@ -339,7 +349,9 @@ static int accessfs_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-static struct super_block *accessfs_get_sb(struct file_system_type *fs_type, int flags, const char *dev_name, void *data)
+static struct super_block *accessfs_get_sb(struct file_system_type *fs_type,
+					   int flags, const char *dev_name,
+					   void *data)
 {
 	return get_sb_single(fs_type, flags, data, accessfs_fill_super);
 }
@@ -355,28 +367,29 @@ int accessfs_permitted(struct access_attr *p, int mask)
 	return (mode & mask) == mask;
 }
 
-int accessfs_register(struct accessfs_direntry *dir, const char *name, struct access_attr *attr)
+int accessfs_register(struct accessfs_direntry *dir, const char *name,
+		      struct access_attr *attr)
 {
 	int err;
 	if (dir == 0)
 		return -EINVAL;
 
-	down(&accessfs_sem);
+	mutex_lock(&accessfs_sem);
 	err = accessfs_mknod(dir, name, attr);
-	up(&accessfs_sem);
+	mutex_unlock(&accessfs_sem);
 	return err;
 }
 
 void accessfs_unregister(struct accessfs_direntry *dir, const char *name)
 {
 	struct accessfs_entry *pe;
-	down(&accessfs_sem);
+	mutex_lock(&accessfs_sem);
 	pe = accessfs_lookup_entry(&dir->node, name, strlen(name));
 	if (pe) {
 		accessfs_unlink(pe);
 	}
 
-	up(&accessfs_sem);
+	mutex_unlock(&accessfs_sem);
 }
 
 static struct file_system_type accessfs_fs_type = {
@@ -388,21 +401,15 @@ static struct file_system_type accessfs_fs_type = {
 
 static int __init init_accessfs_fs(void)
 {
-
-#ifdef CONFIG_PROC_FS
 	/* create mount point for accessfs */
 	mountdir = proc_mkdir("access",&proc_root);
-#endif
 	return register_filesystem(&accessfs_fs_type);
 }
 
 static void __exit exit_accessfs_fs(void)
 {
 	unregister_filesystem(&accessfs_fs_type);
-
-#ifdef CONFIG_PROC_FS
 	remove_proc_entry("access",&proc_root);
-#endif
 }
 
 module_init(init_accessfs_fs)
