@@ -349,11 +349,11 @@ static int accessfs_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-static struct super_block *accessfs_get_sb(struct file_system_type *fs_type,
-					   int flags, const char *dev_name,
-					   void *data)
+static int accessfs_get_sb(struct file_system_type *fs_type,
+			   int flags, const char *dev_name,
+			   void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, accessfs_fill_super);
+	return get_sb_single(fs_type, flags, data, accessfs_fill_super, mnt);
 }
 
 int accessfs_permitted(struct access_attr *p, int mask)
