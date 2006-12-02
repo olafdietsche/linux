@@ -7,7 +7,6 @@
  * Access permission filesystem for Linux.
  */
 
-#include <linux/config.h>
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/fs.h>
