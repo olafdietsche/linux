@@ -95,4 +95,4 @@ module_init(init_capabilities)
 
 MODULE_AUTHOR("Olaf Dietsche");
 MODULE_DESCRIPTION("User based capabilities");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

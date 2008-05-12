@@ -8,7 +8,12 @@
 #include <linux/module.h>
 #include <net/sock.h>
 
+#ifndef CONFIG_ACCESSFS_IGNORE_NET_BIND_SERVICE
+#define CONFIG_ACCESSFS_IGNORE_NET_BIND_SERVICE 0
+#endif
+
 static int max_prot_sock = CONFIG_ACCESSFS_PROT_SOCK;
+static int ignore_net_bind_service = CONFIG_ACCESSFS_IGNORE_NET_BIND_SERVICE;
 static struct access_attr *bind_to_port;
 
 static int accessfs_ip_prot_sock(struct socket *sock,
@@ -18,7 +23,7 @@ static int accessfs_ip_prot_sock(struct socket *sock,
 	unsigned short snum = ntohs(addr->sin_port);
 	if (snum && snum < max_prot_sock
 	    && !accessfs_permitted(&bind_to_port[snum], MAY_EXEC)
-	    && !capable(CAP_NET_BIND_SERVICE))
+	    && (ignore_net_bind_service || !capable(CAP_NET_BIND_SERVICE)))
 		return -EACCES;
 
 	return 0;
@@ -90,6 +95,8 @@ module_exit(exit_ip)
 
 MODULE_AUTHOR("Olaf Dietsche");
 MODULE_DESCRIPTION("User based IP ports permission");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 module_param(max_prot_sock, int, 0);
 MODULE_PARM_DESC(max_prot_sock, "Number of protected ports");
+module_param(ignore_net_bind_service, bool, 0644);
+MODULE_PARM_DESC(ignore_net_bind_service, "Ignore CAP_NET_BIND_SERVICE capability");

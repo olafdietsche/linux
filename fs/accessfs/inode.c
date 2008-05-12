@@ -97,34 +97,16 @@ static struct accessfs_entry *accessfs_lookup_entry(struct accessfs_entry *pe,
 {
 	struct list_head *list;
 	struct accessfs_direntry *dir;
-	struct accessfs_entry *de;
 	if (!S_ISDIR(pe->attr->mode))
 		return NULL;
 
 	dir = (struct accessfs_direntry *) pe;
-	de = NULL;
 	list_for_each(list, &dir->children) {
-		de = list_entry(list, struct accessfs_entry, siblings);
+		struct accessfs_entry *de = list_entry(list, struct accessfs_entry, siblings);
 		if (strncmp(de->name, name, len) == 0 && de->name[len] == 0)
-			break;
+			return de;
 	}
 
-	return de;
-}
-
-static struct dentry *accessfs_lookup(struct inode *dir, struct dentry *dentry,
-				      struct nameidata *nd)
-{
-	struct inode *inode = NULL;
-	struct accessfs_entry *pe;
-	mutex_lock(&accessfs_sem);
-	pe = accessfs_lookup_entry(dir->i_private, dentry->d_name.name,
-				   dentry->d_name.len);
-	mutex_unlock(&accessfs_sem);
-	if (pe)
-		inode = iget(dir->i_sb, pe->ino);
-
-	d_add(dentry, inode);
 	return NULL;
 }
 
@@ -278,23 +260,34 @@ static void accessfs_unlink(struct accessfs_entry *pe)
 
 static int accessfs_notify_change(struct dentry *dentry, struct iattr *iattr)
 {
+	struct accessfs_entry *pe;
 	struct inode *i = dentry->d_inode;
-	int err = inode_setattr(i, iattr);
-	if (!err) {
-		struct accessfs_entry *pe;
-		pe = (struct accessfs_entry *) i->i_private;
-		pe->attr->uid = i->i_uid;
-		pe->attr->gid = i->i_gid;
-		pe->attr->mode = i->i_mode;
-	}
+	int err;
+	err = inode_change_ok(i, iattr);
+	if (err)
+		return err;
 
-	return err;
+	err = inode_setattr(i, iattr);
+	if (err)
+		return err;
+
+	pe = (struct accessfs_entry *) i->i_private;
+	pe->attr->uid = i->i_uid;
+	pe->attr->gid = i->i_gid;
+	pe->attr->mode = i->i_mode;
+	return 0;
 }
 
-static void accessfs_read_inode(struct inode *inode)
+static struct inode *accessfs_iget(struct super_block *sb, unsigned long ino)
 {
-	ino_t	ino = inode->i_ino;
-	struct list_head	*list;
+	struct list_head *list;
+	struct inode *inode = iget_locked(sb, ino);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+	
+	if (!(inode->i_state & I_NEW))
+		return inode;
+	
 	mutex_lock(&accessfs_sem);
 	list_for_each(list, &hash) {
 		struct accessfs_entry *pe;
@@ -306,6 +299,23 @@ static void accessfs_read_inode(struct inode *inode)
 	}
 
 	mutex_unlock(&accessfs_sem);
+	return inode;
+}
+
+static struct dentry *accessfs_lookup(struct inode *dir, struct dentry *dentry,
+				      struct nameidata *nd)
+{
+	struct inode *inode = NULL;
+	struct accessfs_entry *pe;
+	mutex_lock(&accessfs_sem);
+	pe = accessfs_lookup_entry(dir->i_private, dentry->d_name.name,
+				   dentry->d_name.len);
+	mutex_unlock(&accessfs_sem);
+	if (pe)
+		inode = accessfs_iget(dir->i_sb, pe->ino);
+
+	d_add(dentry, inode);
+	return NULL;
 }
 
 static struct inode_operations accessfs_inode_operations = {
@@ -322,7 +332,6 @@ static struct file_operations accessfs_dir_file_operations = {
 };
 
 static struct super_operations accessfs_ops = {
-	.read_inode =	accessfs_read_inode,
 	.statfs =	simple_statfs,
 };
 
@@ -385,9 +394,8 @@ void accessfs_unregister(struct accessfs_direntry *dir, const char *name)
 	struct accessfs_entry *pe;
 	mutex_lock(&accessfs_sem);
 	pe = accessfs_lookup_entry(&dir->node, name, strlen(name));
-	if (pe) {
+	if (pe)
 		accessfs_unlink(pe);
-	}
 
 	mutex_unlock(&accessfs_sem);
 }
@@ -417,7 +425,7 @@ module_exit(exit_accessfs_fs)
 
 MODULE_AUTHOR("Olaf Dietsche");
 MODULE_DESCRIPTION("Access Filesystem");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 EXPORT_SYMBOL(accessfs_permitted);
 EXPORT_SYMBOL(accessfs_make_dirpath);

@@ -36,6 +36,20 @@ config ACCESSFS_PROT_SOCK
 
 	  If you're unsure, say 1024.
 
+config ACCESSFS_IGNORE_NET_BIND_SERVICE
+	bool "Ignore CAP_NET_BIND_SERVICE capability"
+	depends on ACCESSFS_USER_PORTS
+	default n
+	help
+	  This option lets you decide, wether a user with 
+	  CAP_NET_BIND_SERVICE capability is able to override
+	  your userport configuration.
+
+	  If you build this as a module, you can specify this
+	  option at module load time (ignore_net_bind_service).
+
+	  If you're unsure, say N.
+
 config ACCESSFS_USER_CAPABILITIES
 	tristate "User permission based capabilities"
 	depends on ACCESS_FS
