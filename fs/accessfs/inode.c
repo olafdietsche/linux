@@ -410,14 +410,14 @@ static struct file_system_type accessfs_fs_type = {
 static int __init init_accessfs_fs(void)
 {
 	/* create mount point for accessfs */
-	mountdir = proc_mkdir("access",&proc_root);
+	mountdir = proc_mkdir("access", NULL);
 	return register_filesystem(&accessfs_fs_type);
 }
 
 static void __exit exit_accessfs_fs(void)
 {
 	unregister_filesystem(&accessfs_fs_type);
-	remove_proc_entry("access",&proc_root);
+	remove_proc_entry("access", NULL);
 }
 
 module_init(init_accessfs_fs)
