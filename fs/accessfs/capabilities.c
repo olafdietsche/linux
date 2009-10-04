@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/security.h>
 
+/* perl -n -e 'print "\"", lc($1), "\",\n" if (m/^#define\s+CAP_(.+?)\s+\d+$/);' include/linux/capability.h */
 static const char *names[] = {
 	"chown",
 	"dac_override",
@@ -37,7 +38,12 @@ static const char *names[] = {
 	"sys_time",
 	"sys_tty_config",
 	"mknod",
-	"lease"
+	"lease",
+	"audit_write",
+	"audit_control",
+	"setfcap",
+	"mac_override",
+	"mac_admin",
 };
 
 static struct access_attr caps[ARRAY_SIZE(names)];
@@ -46,7 +52,6 @@ static int accessfs_capable(struct task_struct *tsk, const struct cred *cred, in
 {
 	if (accessfs_permitted(&caps[cap], MAY_EXEC)) {
 		/* capability granted */
-		tsk->flags |= PF_SUPERPRIV;
 		return 0;
 	}
 
@@ -85,6 +90,9 @@ static int __init init_capabilities(void)
 		}
 	}
 
+	if (!security_module_enable(&accessfs_security_ops))
+		return -EAGAIN;
+
 	err = register_security(&accessfs_security_ops);
 	if (err != 0)
 		unregister_capabilities(dir, ARRAY_SIZE(names));
@@ -92,7 +100,7 @@ static int __init init_capabilities(void)
 	return err;
 }
 
-module_init(init_capabilities)
+security_initcall(init_capabilities);
 
 MODULE_AUTHOR("Olaf Dietsche");
 MODULE_DESCRIPTION("User based capabilities");

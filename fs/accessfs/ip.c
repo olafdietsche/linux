@@ -36,7 +36,7 @@ static int accessfs_ip6_prot_sock(struct socket *sock,
 	unsigned short snum = ntohs(addr->sin6_port);
 	if (snum && snum < max_prot_sock
 	    && !accessfs_permitted(&bind_to_port[snum], MAY_EXEC)
-	    && !capable(CAP_NET_BIND_SERVICE))
+	    && (ignore_net_bind_service || !capable(CAP_NET_BIND_SERVICE)))
 		return -EACCES;
 
 	return 0;
