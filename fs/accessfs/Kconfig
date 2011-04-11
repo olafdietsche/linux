@@ -10,7 +10,7 @@ config ACCESS_FS
 
 config ACCESSFS_USER_PORTS
 	tristate "User permission based IP ports"
-	depends on ACCESS_FS
+	depends on ACCESS_FS && INET
 	select NET_HOOKS
 	default n
 	help
