@@ -355,11 +355,10 @@ static int accessfs_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-static int accessfs_get_sb(struct file_system_type *fs_type,
-			   int flags, const char *dev_name,
-			   void *data, struct vfsmount *mnt)
+static struct dentry *accessfs_mount(struct file_system_type *fs_type,
+			   int flags, const char *dev_name, void *data)
 {
-	return get_sb_single(fs_type, flags, data, accessfs_fill_super, mnt);
+	return mount_single(fs_type, flags, data, accessfs_fill_super);
 }
 
 int accessfs_permitted(struct access_attr *p, int mask)
@@ -400,7 +399,7 @@ void accessfs_unregister(struct accessfs_direntry *dir, const char *name)
 static struct file_system_type accessfs_fs_type = {
 	.owner =	THIS_MODULE,
 	.name =		"accessfs",
-	.get_sb =	accessfs_get_sb,
+	.mount =	accessfs_mount,
 	.kill_sb =	kill_anon_super,
 };
 
