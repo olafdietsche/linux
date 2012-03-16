@@ -295,6 +295,7 @@ static struct inode *accessfs_iget(struct super_block *sb, unsigned long ino)
 		}
 	}
 
+	unlock_new_inode(inode);
 	mutex_unlock(&accessfs_sem);
 	return inode;
 }
