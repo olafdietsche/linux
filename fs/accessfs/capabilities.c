@@ -49,8 +49,9 @@ static const char *names[] = {
 
 static struct access_attr caps[ARRAY_SIZE(names)];
 
-static int accessfs_capable(struct task_struct *tsk, const struct cred *cred, int cap, int audit)
+static int accessfs_capable(struct task_struct *tsk, const struct cred *cred, struct user_namespace *ns, int cap, int audit)
 {
+	/* FIXME?: accessfs is not namespace aware */
 	if (accessfs_permitted(&caps[cap], MAY_EXEC)) {
 		/* capability granted */
 		return 0;
