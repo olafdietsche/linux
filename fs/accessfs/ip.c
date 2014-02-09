@@ -13,7 +13,7 @@
 #endif
 
 static int max_prot_sock = CONFIG_ACCESSFS_PROT_SOCK;
-static int ignore_net_bind_service = CONFIG_ACCESSFS_IGNORE_NET_BIND_SERVICE;
+static bool ignore_net_bind_service = CONFIG_ACCESSFS_IGNORE_NET_BIND_SERVICE;
 static struct access_attr *bind_to_port;
 
 static int accessfs_ip_prot_sock(struct socket *sock,
