@@ -45,6 +45,7 @@ static const char *names[] = {
 	"mac_override",
 	"mac_admin",
 	"syslog",
+	"wake_alarm",
 };
 
 static struct access_attr caps[ARRAY_SIZE(names)];

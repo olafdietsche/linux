@@ -15,8 +15,7 @@ config ACCESSFS_USER_PORTS
 	default n
 	help
 	  If you say Y here, you will be able to control access to IP ports
-	  based on user-/groupid. For this to work, you must say Y
-	  to CONFIG_NET_HOOKS.
+	  based on user-/groupid.
 
 	  If you're unsure, say N.
 
