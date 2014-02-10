@@ -301,7 +301,7 @@ static struct inode *accessfs_iget(struct super_block *sb, unsigned long ino)
 }
 
 static struct dentry *accessfs_lookup(struct inode *dir, struct dentry *dentry,
-				      struct nameidata *nd)
+				      unsigned int flags)
 {
 	struct inode *inode = NULL;
 	struct accessfs_entry *pe;
