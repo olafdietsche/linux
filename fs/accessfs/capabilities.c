@@ -91,16 +91,7 @@ static int __init init_capabilities(void)
 	return err;
 }
 
-static void __exit exit_capabilities(void)
-{
-	struct accessfs_direntry *dir;
-	dir = accessfs_make_dirpath("capabilities");
-	unregister_security(&accessfs_security_ops);
-	unregister_capabilities(dir, ARRAY_SIZE(names));
-}
-
 module_init(init_capabilities)
-module_exit(exit_capabilities)
 
 MODULE_AUTHOR("Olaf Dietsche");
 MODULE_DESCRIPTION("User based capabilities");
