@@ -346,11 +346,9 @@ static int accessfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!inode)
 		return -ENOMEM;
 
-	root = d_alloc_root(inode);
-	if (!root) {
-		iput(inode);
+	root = d_make_root(inode);
+	if (!root)
 		return -ENOMEM;
-	}
 
 	sb->s_root = root;
 	return 0;
