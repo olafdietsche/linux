@@ -23,7 +23,6 @@
 #include <linux/string.h>
 #include <linux/proc_fs.h>
 #include <asm/statfs.h>
-#include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
 #define ACCESSFS_MAGIC	0x3c1d36e7
