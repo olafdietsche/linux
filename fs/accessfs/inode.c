@@ -266,9 +266,7 @@ static int accessfs_notify_change(struct dentry *dentry, struct iattr *iattr)
 	if (err)
 		return err;
 
-	err = inode_setattr(i, iattr);
-	if (err)
-		return err;
+	setattr_copy(i, iattr);
 
 	pe = (struct accessfs_entry *) i->i_private;
 	pe->attr->uid = i->i_uid;
