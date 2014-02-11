@@ -367,7 +367,7 @@ static int accessfs_get_sb(struct file_system_type *fs_type,
 int accessfs_permitted(struct access_attr *p, int mask)
 {
 	mode_t mode = p->mode;
-	if (current->fsuid == p->uid)
+	if (current_fsuid() == p->uid)
 		mode >>= 6;
 	else if (in_group_p(p->gid))
 		mode >>= 3;

@@ -42,7 +42,7 @@ static const char *names[] = {
 
 static struct access_attr caps[ARRAY_SIZE(names)];
 
-static int accessfs_capable(struct task_struct *tsk, int cap)
+static int accessfs_capable(struct task_struct *tsk, const struct cred *cred, int cap, int audit)
 {
 	if (accessfs_permitted(&caps[cap], MAY_EXEC)) {
 		/* capability granted */
@@ -55,6 +55,7 @@ static int accessfs_capable(struct task_struct *tsk, int cap)
 }
 
 static struct security_operations accessfs_security_ops = {
+	.name = "usercaps",
 	.capable =	accessfs_capable,
 };
 
