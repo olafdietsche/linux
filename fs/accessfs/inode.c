@@ -37,8 +37,7 @@ static struct inode_operations accessfs_dir_inode_operations;
 
 static inline void accessfs_readdir_aux(struct file *filp,
 					struct accessfs_direntry *dir,
-					int start, void *dirent,
-					filldir_t filldir)
+					int start, struct dir_context *ctx)
 {
 	struct list_head *list;
 	int i = 2;
@@ -48,42 +47,39 @@ static inline void accessfs_readdir_aux(struct file *filp,
 			continue;
 
 		de = list_entry(list, struct accessfs_entry, siblings);
-		if (filldir(dirent, de->name, strlen(de->name), filp->f_pos,
-			    de->ino, DT_UNKNOWN) < 0)
+		if (!dir_emit(ctx, de->name, strlen(de->name), de->ino, DT_UNKNOWN))
 			break;
 
-		++filp->f_pos;
+		++ctx->pos;
 	}
 }
 
-static int accessfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
+static int accessfs_readdir(struct file *filp, struct dir_context *ctx)
 {
 	int i;
 	struct dentry *dentry = filp->f_dentry;
 	struct accessfs_direntry *dir;
 
-	i = filp->f_pos;
+	i = ctx->pos;
 	switch (i) {
 	case 0:
-		if (filldir(dirent, ".", 1, i, dentry->d_inode->i_ino,
-			    DT_DIR) < 0)
+		if (!dir_emit_dot(filp, ctx))
 			break;
 
 		++i;
-		++filp->f_pos;
+		++ctx->pos;
 		/* NO break; */
 	case 1:
-		if (filldir(dirent, "..", 2, i,
-			    dentry->d_parent->d_inode->i_ino, DT_DIR) < 0)
+		if (!dir_emit_dotdot(filp, ctx))
 			break;
 
 		++i;
-		++filp->f_pos;
+		++ctx->pos;
 		/* NO break; */
 	default:
 		mutex_lock(&accessfs_sem);
 		dir = dentry->d_inode->i_private;
-		accessfs_readdir_aux(filp, dir, i, dirent, filldir);
+		accessfs_readdir_aux(filp, dir, i, ctx);
 		mutex_unlock(&accessfs_sem);
 		break;
 	}
@@ -326,7 +322,7 @@ static struct inode_operations accessfs_dir_inode_operations = {
 };
 
 static struct file_operations accessfs_dir_file_operations = {
-	.readdir =	accessfs_readdir,
+	.iterate =	accessfs_readdir,
 };
 
 static struct super_operations accessfs_ops = {
