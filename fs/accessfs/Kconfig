@@ -1,6 +1,5 @@
 config ACCESS_FS
-	tristate "Accessfs support (Experimental)"
-	depends on EXPERIMENTAL
+	tristate "Accessfs support (EXPERIMENTAL)"
 	default n
 	help
 	  This is a new file system to manage permissions. It is not very

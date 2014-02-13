@@ -80,8 +80,8 @@ source "net/ipv6/Kconfig"
 source "net/netlabel/Kconfig"
 
 config NET_HOOKS
-	bool "IP: Networking hooks (Experimental)"
-	depends on INET && EXPERIMENTAL
+	bool "IP: Networking hooks (EXPERIMENTAL)"
+	depends on INET
 	default n
 	help
 	  This option enables other kernel parts or modules to hook into the
