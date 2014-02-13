@@ -8,21 +8,21 @@
 #include <linux/in6.h>
 #include <net/sock.h>
 
-int default_ip_prot_sock(struct socket *sock, struct sockaddr *uaddr, int addr_len)
+int default_ip_prot_sock(struct socket *sock, struct sockaddr *uaddr, int addr_len, struct user_namespace *user_ns)
 {
 	struct sockaddr_in *addr = (struct sockaddr_in *) uaddr;
 	unsigned short snum = ntohs(addr->sin_port);
-	if (snum && snum < PROT_SOCK && !capable(CAP_NET_BIND_SERVICE))
+	if (snum && snum < PROT_SOCK && !ns_capable(user_ns, CAP_NET_BIND_SERVICE))
 		return -EACCES;
 
 	return 0;
 }
 
-int default_ip6_prot_sock(struct socket *sock, struct sockaddr *uaddr, int addr_len)
+int default_ip6_prot_sock(struct socket *sock, struct sockaddr *uaddr, int addr_len, struct user_namespace *user_ns)
 {
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *) uaddr;
 	unsigned short snum = ntohs(addr->sin6_port);
-	if (snum && snum < PROT_SOCK && !capable(CAP_NET_BIND_SERVICE))
+	if (snum && snum < PROT_SOCK && !ns_capable(user_ns, CAP_NET_BIND_SERVICE))
 		return -EACCES;
 
 	return 0;

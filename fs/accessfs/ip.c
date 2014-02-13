@@ -17,26 +17,28 @@ static bool ignore_net_bind_service = CONFIG_ACCESSFS_IGNORE_NET_BIND_SERVICE;
 static struct access_attr *bind_to_port;
 
 static int accessfs_ip_prot_sock(struct socket *sock,
-				 struct sockaddr *uaddr, int addr_len)
+				 struct sockaddr *uaddr, int addr_len,
+				 struct user_namespace *user_ns)
 {
 	struct sockaddr_in *addr = (struct sockaddr_in *) uaddr;
 	unsigned short snum = ntohs(addr->sin_port);
 	if (snum && snum < max_prot_sock
 	    && !accessfs_permitted(&bind_to_port[snum], MAY_EXEC)
-	    && (ignore_net_bind_service || !capable(CAP_NET_BIND_SERVICE)))
+	    && (ignore_net_bind_service || !ns_capable(user_ns, CAP_NET_BIND_SERVICE)))
 		return -EACCES;
 
 	return 0;
 }
 
 static int accessfs_ip6_prot_sock(struct socket *sock,
-				  struct sockaddr *uaddr, int addr_len)
+				  struct sockaddr *uaddr, int addr_len,
+				  struct user_namespace *user_ns)
 {
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *) uaddr;
 	unsigned short snum = ntohs(addr->sin6_port);
 	if (snum && snum < max_prot_sock
 	    && !accessfs_permitted(&bind_to_port[snum], MAY_EXEC)
-	    && (ignore_net_bind_service || !capable(CAP_NET_BIND_SERVICE)))
+	    && (ignore_net_bind_service || !ns_capable(user_ns, CAP_NET_BIND_SERVICE)))
 		return -EACCES;
 
 	return 0;

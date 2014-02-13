@@ -283,7 +283,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		return -EINVAL;
 
 	snum = ntohs(addr->sin6_port);
-	if (ip6_prot_sock(sock, uaddr, addr_len))
+	if (ip6_prot_sock(sock, uaddr, addr_len, net->user_ns))
 		return -EACCES;
 
 	lock_sock(sk);

@@ -2241,15 +2241,17 @@ extern __u32 sysctl_rmem_max;
 
 /* Networking hooks */
 extern int default_ip_prot_sock(struct socket *sock, struct sockaddr *uaddr,
-				int addr_len);
+				int addr_len, struct user_namespace *user_ns);
 extern int default_ip6_prot_sock(struct socket *sock, struct sockaddr *uaddr,
-				 int addr_len);
+				 int addr_len, struct user_namespace *user_ns);
 #ifdef	CONFIG_NET_HOOKS
 struct net_hook_operations {
 	int	(*ip_prot_sock)(struct socket *sock,
-				struct sockaddr *uaddr, int addr_len);
+				struct sockaddr *uaddr, int addr_len,
+				struct user_namespace *user_ns);
 	int	(*ip6_prot_sock)(struct socket *sock,
-				 struct sockaddr *uaddr, int addr_len);
+				 struct sockaddr *uaddr, int addr_len,
+				 struct user_namespace *user_ns);
 };
 
 extern struct net_hook_operations	*net_ops;
@@ -2258,27 +2260,27 @@ extern void net_hooks_register(struct net_hook_operations *ops);
 extern void net_hooks_unregister(struct net_hook_operations *ops);
 
 static inline int ip_prot_sock(struct socket *sock, struct sockaddr *uaddr,
-			       int addr_len)
+			       int addr_len, struct user_namespace *user_ns)
 {
-	return net_ops->ip_prot_sock(sock, uaddr, addr_len);
+	return net_ops->ip_prot_sock(sock, uaddr, addr_len, user_ns);
 }
 
 static inline int ip6_prot_sock(struct socket *sock, struct sockaddr *uaddr,
-				int addr_len)
+				int addr_len, struct user_namespace *user_ns)
 {
-	return net_ops->ip6_prot_sock(sock, uaddr, addr_len);
+	return net_ops->ip6_prot_sock(sock, uaddr, addr_len, user_ns);
 }
 #else
 static inline int ip_prot_sock(struct socket *sock, struct sockaddr *uaddr,
-			       int addr_len)
+			       int addr_len, struct user_namespace *user_ns)
 {
-	return default_ip_prot_sock(sock, uaddr, addr_len);
+	return default_ip_prot_sock(sock, uaddr, addr_len, user_ns);
 }
 
 static inline int ip6_prot_sock(struct socket *sock, struct sockaddr *uaddr,
-				int addr_len)
+				int addr_len, struct user_namespace *user_ns)
 {
-	return default_ip6_prot_sock(sock, uaddr, addr_len);
+	return default_ip6_prot_sock(sock, uaddr, addr_len, user_ns);
 }
 #endif
 

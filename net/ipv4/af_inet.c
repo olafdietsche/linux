@@ -518,7 +518,7 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 	snum = ntohs(addr->sin_port);
 	err = -EACCES;
-	if (ip_prot_sock(sock, uaddr, addr_len))
+	if (ip_prot_sock(sock, uaddr, addr_len, net->user_ns))
 		goto out;
 
 	/*      We keep a pair of addresses. rcv_saddr is the one
