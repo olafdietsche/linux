@@ -115,7 +115,7 @@ static struct accessfs_direntry	accessfs_rootdir = {
 	  LIST_HEAD_INIT(accessfs_rootdir.node.siblings), 
 	  1, &accessfs_rootdir.attr },
 	NULL, LIST_HEAD_INIT(accessfs_rootdir.children), 
-	{ 0, 0, S_IFDIR | 0755 }
+	{ GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, S_IFDIR | 0755 }
 };
 
 static void accessfs_init_inode(struct inode *inode, struct accessfs_entry *pe)
@@ -174,8 +174,8 @@ static int accessfs_node_init(struct accessfs_direntry *parent,
 	de->name[len] = 0;
 	de->ino = ++ino;
 	de->attr = attr;
-	de->attr->uid = 0;
-	de->attr->gid = 0;
+	de->attr->uid = GLOBAL_ROOT_UID;
+	de->attr->gid = GLOBAL_ROOT_GID;
 	de->attr->mode = mode;
 
 	list_add_tail(&de->hash, &hash);
@@ -363,7 +363,7 @@ static struct dentry *accessfs_mount(struct file_system_type *fs_type,
 int accessfs_permitted(struct access_attr *p, int mask)
 {
 	mode_t mode = p->mode;
-	if (current_fsuid() == p->uid)
+	if (uid_eq(current_fsuid(), p->uid))
 		mode >>= 6;
 	else if (in_group_p(p->gid))
 		mode >>= 3;

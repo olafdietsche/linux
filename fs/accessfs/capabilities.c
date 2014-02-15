@@ -83,8 +83,8 @@ static int __init init_capabilities(void)
 		return -ENOTDIR;
 
 	for (i = 0; i < ARRAY_SIZE(caps); ++i) {
-		caps[i].uid = 0;
-		caps[i].gid = 0;
+		caps[i].uid = GLOBAL_ROOT_UID;
+		caps[i].gid = GLOBAL_ROOT_GID;
 		caps[i].mode = S_IXUSR;
 		err = accessfs_register(dir, names[i], &caps[i]);
 		if (err) {

@@ -14,8 +14,8 @@
 #include <net/sock.h>
 
 struct access_attr {
-	uid_t	uid;
-	gid_t	gid;
+	kuid_t	uid;
+	kgid_t	gid;
 	mode_t	mode;
 };
 

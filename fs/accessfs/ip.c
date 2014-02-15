@@ -66,8 +66,8 @@ static int __init init_ip(void)
 
 	for (i = 1; i < max_prot_sock; ++i) {
 		char	buf[sizeof("65536")];
-		bind_to_port[i].uid = 0;
-		bind_to_port[i].gid = 0;
+		bind_to_port[i].uid = GLOBAL_ROOT_UID;
+		bind_to_port[i].gid = GLOBAL_ROOT_GID;
 		bind_to_port[i].mode = i < PROT_SOCK ? S_IXUSR : S_IXUGO;
 		sprintf(buf, "%d", i);
 		accessfs_register(dir, buf, &bind_to_port[i]);
