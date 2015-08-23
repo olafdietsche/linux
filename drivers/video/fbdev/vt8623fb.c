@@ -731,7 +731,7 @@ static int vt8623_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	pcibios_bus_to_resource(dev->bus, &vga_res, &bus_reg);
 
-	par->state.vgabase = (void __iomem *) vga_res.start;
+	par->state.vgabase = (void __iomem *) (unsigned long) vga_res.start;
 
 	/* Find how many physical memory there is on card */
 	memsize1 = (vga_rseq(par->state.vgabase, 0x34) + 1) >> 1;
@@ -754,9 +754,9 @@ static int vt8623_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	/* Prepare startup mode */
 
-	kparam_block_sysfs_write(mode_option);
+	kernel_param_lock(THIS_MODULE);
 	rc = fb_find_mode(&(info->var), info, mode_option, NULL, 0, NULL, 8);
-	kparam_unblock_sysfs_write(mode_option);
+	kernel_param_unlock(THIS_MODULE);
 	if (! ((rc == 1) || (rc == 2))) {
 		rc = -EINVAL;
 		dev_err(info->device, "mode %s not found\n", mode_option);

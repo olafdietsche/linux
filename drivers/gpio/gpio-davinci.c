@@ -234,11 +234,6 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "Invalid memory resource\n");
-		return -EBUSY;
-	}
-
 	gpio_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(gpio_base))
 		return PTR_ERR(gpio_base);
@@ -583,15 +578,13 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 		writel_relaxed(~0, &g->clr_falling);
 		writel_relaxed(~0, &g->clr_rising);
 
-		/* set up all irqs in this bank */
-		irq_set_chained_handler(bank_irq, gpio_irq_handler);
-
 		/*
 		 * Each chip handles 32 gpios, and each irq bank consists of 16
 		 * gpio irqs. Pass the irq bank's corresponding controller to
 		 * the chained irq handler.
 		 */
-		irq_set_handler_data(bank_irq, &chips[gpio / 32]);
+		irq_set_chained_handler_and_data(bank_irq, gpio_irq_handler,
+						 &chips[gpio / 32]);
 
 		binten |= BIT(bank);
 	}
@@ -619,7 +612,6 @@ static struct platform_driver davinci_gpio_driver = {
 	.probe		= davinci_gpio_probe,
 	.driver		= {
 		.name		= "davinci_gpio",
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(davinci_gpio_ids),
 	},
 };

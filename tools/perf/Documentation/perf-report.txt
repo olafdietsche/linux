@@ -34,12 +34,18 @@ OPTIONS
 
 -T::
 --threads::
-	Show per-thread event counters
+	Show per-thread event counters.  The input data file should be recorded
+	with -s option.
 -c::
 --comms=::
 	Only consider symbols in these comms. CSV that understands
 	file://filename entries.  This option will affect the percentage of
 	the overhead column.  See --percentage for more info.
+--pid=::
+        Only show events for given process ID (comma separated list).
+
+--tid=::
+        Only show events for given thread ID (comma separated list).
 -d::
 --dsos=::
 	Only consider symbols in these dsos. CSV that understands
@@ -147,7 +153,7 @@ OPTIONS
 -w::
 --column-widths=<width[,width...]>::
 	Force each column width to the provided list, for large terminal
-	readability.
+	readability.  0 means no limit (default behavior).
 
 -t::
 --field-separator=::
@@ -159,7 +165,7 @@ OPTIONS
 --dump-raw-trace::
         Dump raw trace in ASCII.
 
--g [type,min[,limit],order[,key]]::
+-g [type,min[,limit],order[,key][,branch]]::
 --call-graph::
         Display call chains using type, min percent threshold, optional print
 	limit and order.
@@ -177,12 +183,18 @@ OPTIONS
 	- function: compare on functions
 	- address: compare on individual code addresses
 
+	branch can be:
+	- branch: include last branch information in callgraph
+	when available. Usually more convenient to use --branch-history
+	for this.
+
 	Default: fractal,0.5,callee,function.
 
 --children::
 	Accumulate callchain of children to parent entry so that then can
 	show up in the output.  The output will have a new "Children" column
 	and will be sorted on the data.  It requires callchains are recorded.
+	See the `overhead calculation' section for more details.
 
 --max-stack::
 	Set the stack depth limit when parsing the callchain, anything
@@ -266,6 +278,11 @@ OPTIONS
 	branch stacks and it will automatically switch to the branch view mode,
 	unless --no-branch-stack is used.
 
+--branch-history::
+	Add the addresses of sampled taken branches to the callstack.
+	This allows to examine the path the program took to each sample.
+	The data collection must have used -b (or -j) and -g.
+
 --objdump=<path>::
         Path to objdump binary.
 
@@ -275,6 +292,9 @@ OPTIONS
 --demangle::
 	Demangle symbol names to human readable form. It's enabled by default,
 	disable with --no-demangle.
+
+--demangle-kernel::
+	Demangle kernel symbol names to human readable form (for C++ kernels).
 
 --mem-mode::
 	Use the data addresses of samples in addition to instruction addresses
@@ -304,6 +324,37 @@ OPTIONS
 
 --header-only::
 	Show only perf.data header (forces --stdio).
+
+--itrace::
+	Options for decoding instruction tracing data. The options are:
+
+		i	synthesize instructions events
+		b	synthesize branches events
+		c	synthesize branches events (calls only)
+		r	synthesize branches events (returns only)
+		x	synthesize transactions events
+		e	synthesize error events
+		d	create a debug log
+		g	synthesize a call chain (use with i or x)
+
+	The default is all events i.e. the same as --itrace=ibxe
+
+	In addition, the period (default 100000) for instructions events
+	can be specified in units of:
+
+		i	instructions
+		t	ticks
+		ms	milliseconds
+		us	microseconds
+		ns	nanoseconds (default)
+
+	Also the call chain size (default 16, max. 1024) for instructions or
+	transactions events can be specified.
+
+	To disable decoding entirely, use --no-itrace.
+
+
+include::callchain-overhead-calculation.txt[]
 
 SEE ALSO
 --------

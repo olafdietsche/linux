@@ -10,6 +10,7 @@
 */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -18,10 +19,13 @@
 #include <linux/cpufreq.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
+#include <linux/cpu_cooling.h>
+#include <linux/cpu.h>
 
 #include "exynos-cpufreq.h"
 
 static struct exynos_dvfs_info *exynos_info;
+static struct thermal_cooling_device *cdev;
 static struct regulator *arm_regulator;
 static unsigned int locking_frequency;
 
@@ -156,6 +160,7 @@ static struct cpufreq_driver exynos_driver = {
 
 static int exynos_cpufreq_probe(struct platform_device *pdev)
 {
+	struct device_node *cpu0;
 	int ret = -EINVAL;
 
 	exynos_info = kzalloc(sizeof(*exynos_info), GFP_KERNEL);
@@ -164,10 +169,7 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 
 	exynos_info->dev = &pdev->dev;
 
-	if (of_machine_is_compatible("samsung,exynos4210")) {
-		exynos_info->type = EXYNOS_SOC_4210;
-		ret = exynos4210_cpufreq_init(exynos_info);
-	} else if (of_machine_is_compatible("samsung,exynos4212")) {
+	if (of_machine_is_compatible("samsung,exynos4212")) {
 		exynos_info->type = EXYNOS_SOC_4212;
 		ret = exynos4x12_cpufreq_init(exynos_info);
 	} else if (of_machine_is_compatible("samsung,exynos4412")) {
@@ -178,7 +180,7 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 		ret = exynos5250_cpufreq_init(exynos_info);
 	} else {
 		pr_err("%s: Unknown SoC type\n", __func__);
-		return -ENODEV;
+		ret = -ENODEV;
 	}
 
 	if (ret)
@@ -186,32 +188,51 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 
 	if (exynos_info->set_freq == NULL) {
 		dev_err(&pdev->dev, "No set_freq function (ERR)\n");
+		ret = -EINVAL;
 		goto err_vdd_arm;
 	}
 
 	arm_regulator = regulator_get(NULL, "vdd_arm");
 	if (IS_ERR(arm_regulator)) {
 		dev_err(&pdev->dev, "failed to get resource vdd_arm\n");
+		ret = -EINVAL;
 		goto err_vdd_arm;
 	}
 
 	/* Done here as we want to capture boot frequency */
 	locking_frequency = clk_get_rate(exynos_info->cpu_clk) / 1000;
 
-	if (!cpufreq_register_driver(&exynos_driver))
-		return 0;
+	ret = cpufreq_register_driver(&exynos_driver);
+	if (ret)
+		goto err_cpufreq_reg;
 
+	cpu0 = of_get_cpu_node(0, NULL);
+	if (!cpu0) {
+		pr_err("failed to find cpu0 node\n");
+		return 0;
+	}
+
+	if (of_find_property(cpu0, "#cooling-cells", NULL)) {
+		cdev = of_cpufreq_cooling_register(cpu0,
+						   cpu_present_mask);
+		if (IS_ERR(cdev))
+			pr_err("running cpufreq without cooling device: %ld\n",
+			       PTR_ERR(cdev));
+	}
+
+	return 0;
+
+err_cpufreq_reg:
 	dev_err(&pdev->dev, "failed to register cpufreq driver\n");
 	regulator_put(arm_regulator);
 err_vdd_arm:
 	kfree(exynos_info);
-	return -EINVAL;
+	return ret;
 }
 
 static struct platform_driver exynos_cpufreq_platdrv = {
 	.driver = {
 		.name	= "exynos-cpufreq",
-		.owner	= THIS_MODULE,
 	},
 	.probe = exynos_cpufreq_probe,
 };

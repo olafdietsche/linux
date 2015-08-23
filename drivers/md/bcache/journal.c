@@ -7,6 +7,7 @@
 #include "bcache.h"
 #include "btree.h"
 #include "debug.h"
+#include "extents.h"
 
 #include <trace/events/bcache.h>
 
@@ -156,7 +157,7 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 
 	for_each_cache(ca, c, iter) {
 		struct journal_device *ja = &ca->journal;
-		unsigned long bitmap[SB_JOURNAL_BUCKETS / BITS_PER_LONG];
+		DECLARE_BITMAP(bitmap, SB_JOURNAL_BUCKETS);
 		unsigned i, l, r, m;
 		uint64_t seq;
 
@@ -189,11 +190,15 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 			if (read_bucket(l))
 				goto bsearch;
 
-		if (list_empty(list))
+		/* no journal entries on this device? */
+		if (l == ca->sb.njournal_buckets)
 			continue;
 bsearch:
+		BUG_ON(list_empty(list));
+
 		/* Binary search */
-		m = r = find_next_bit(bitmap, ca->sb.njournal_buckets, l + 1);
+		m = l;
+		r = find_next_bit(bitmap, ca->sb.njournal_buckets, l + 1);
 		pr_debug("starting binary search, l %u r %u", l, r);
 
 		while (l + 1 < r) {
@@ -291,15 +296,16 @@ void bch_journal_mark(struct cache_set *c, struct list_head *list)
 
 		for (k = i->j.start;
 		     k < bset_bkey_last(&i->j);
-		     k = bkey_next(k)) {
-			unsigned j;
+		     k = bkey_next(k))
+			if (!__bch_extent_invalid(c, k)) {
+				unsigned j;
 
-			for (j = 0; j < KEY_PTRS(k); j++)
-				if (ptr_available(c, k, j))
-					atomic_inc(&PTR_BUCKET(c, k, j)->pin);
+				for (j = 0; j < KEY_PTRS(k); j++)
+					if (ptr_available(c, k, j))
+						atomic_inc(&PTR_BUCKET(c, k, j)->pin);
 
-			bch_initial_mark_key(c, 0, k);
-		}
+				bch_initial_mark_key(c, 0, k);
+			}
 	}
 }
 
@@ -586,12 +592,14 @@ static void journal_write_unlocked(struct closure *cl)
 
 	if (!w->need_write) {
 		closure_return_with_destructor(cl, journal_write_unlock);
+		return;
 	} else if (journal_full(&c->journal)) {
 		journal_reclaim(c);
 		spin_unlock(&c->journal.lock);
 
 		btree_flush_write(c);
 		continue_at(cl, journal_write, system_wq);
+		return;
 	}
 
 	c->journal.blocks_free -= set_blocks(w->data, block_bytes(c));

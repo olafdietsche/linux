@@ -32,10 +32,15 @@ static void __init of_ti_clockdomain_setup(struct device_node *node)
 	int i;
 	int num_clks;
 
-	num_clks = of_count_phandle_with_args(node, "clocks", "#clock-cells");
+	num_clks = of_clk_get_parent_count(node);
 
 	for (i = 0; i < num_clks; i++) {
 		clk = of_clk_get(node, i);
+		if (IS_ERR(clk)) {
+			pr_err("%s: Failed get %s' clock nr %d (%ld)\n",
+			       __func__, node->full_name, i, PTR_ERR(clk));
+			continue;
+		}
 		if (__clk_get_flags(clk) & CLK_IS_BASIC) {
 			pr_warn("can't setup clkdm for basic clk %s\n",
 				__clk_get_name(clk));
@@ -47,7 +52,7 @@ static void __init of_ti_clockdomain_setup(struct device_node *node)
 	}
 }
 
-static struct of_device_id ti_clkdm_match_table[] __initdata = {
+static const struct of_device_id ti_clkdm_match_table[] __initconst = {
 	{ .compatible = "ti,clockdomain" },
 	{ }
 };

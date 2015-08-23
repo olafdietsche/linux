@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/hash.h>
 #include <linux/random.h>
+#include <linux/backing-dev.h>
 
 #include <trace/events/bcache.h>
 
@@ -87,8 +88,10 @@ static void bch_data_insert_keys(struct closure *cl)
 	if (journal_ref)
 		atomic_dec_bug(journal_ref);
 
-	if (!op->insert_data_done)
+	if (!op->insert_data_done) {
 		continue_at(cl, bch_data_insert_start, op->wq);
+		return;
+	}
 
 	bch_keylist_free(&op->insert_keys);
 	closure_return(cl);
@@ -215,8 +218,10 @@ static void bch_data_insert_start(struct closure *cl)
 		/* 1 for the device pointer and 1 for the chksum */
 		if (bch_keylist_realloc(&op->insert_keys,
 					3 + (op->csum ? 1 : 0),
-					op->c))
+					op->c)) {
 			continue_at(cl, bch_data_insert_keys, op->wq);
+			return;
+		}
 
 		k = op->insert_keys.top;
 		bkey_init(k);
@@ -254,6 +259,7 @@ static void bch_data_insert_start(struct closure *cl)
 
 	op->insert_data_done = true;
 	continue_at(cl, bch_data_insert_keys, op->wq);
+	return;
 err:
 	/* bch_alloc_sectors() blocks if s->writeback = true */
 	BUG_ON(op->writeback);
@@ -311,7 +317,8 @@ void bch_data_insert(struct closure *cl)
 {
 	struct data_insert_op *op = container_of(cl, struct data_insert_op, cl);
 
-	trace_bcache_write(op->bio, op->writeback, op->bypass);
+	trace_bcache_write(op->c, op->inode, op->bio,
+			   op->writeback, op->bypass);
 
 	bch_keylist_init(&op->insert_keys);
 	bio_get(op->bio);
@@ -574,8 +581,10 @@ static void cache_lookup(struct closure *cl)
 	ret = bch_btree_map_keys(&s->op, s->iop.c,
 				 &KEY(s->iop.inode, bio->bi_iter.bi_sector, 0),
 				 cache_lookup_fn, MAP_END_KEY);
-	if (ret == -EAGAIN)
+	if (ret == -EAGAIN) {
 		continue_at(cl, cache_lookup, bcache_wq);
+		return;
+	}
 
 	closure_return(cl);
 }
@@ -600,13 +609,8 @@ static void request_endio(struct bio *bio, int error)
 static void bio_complete(struct search *s)
 {
 	if (s->orig_bio) {
-		int cpu, rw = bio_data_dir(s->orig_bio);
-		unsigned long duration = jiffies - s->start_time;
-
-		cpu = part_stat_lock();
-		part_round_stats(cpu, &s->d->disk->part0);
-		part_stat_add(cpu, &s->d->disk->part0, ticks[rw], duration);
-		part_stat_unlock();
+		generic_end_io_acct(bio_data_dir(s->orig_bio),
+				    &s->d->disk->part0, s->start_time);
 
 		trace_bcache_request_end(s->d, s->orig_bio);
 		bio_endio(s->orig_bio, s->iop.error);
@@ -623,7 +627,7 @@ static void do_bio_hook(struct search *s, struct bio *orig_bio)
 	bio->bi_end_io		= request_endio;
 	bio->bi_private		= &s->cl;
 
-	atomic_set(&bio->bi_cnt, 3);
+	bio_cnt_set(bio, 3);
 }
 
 static void search_free(struct closure *cl)
@@ -958,12 +962,9 @@ static void cached_dev_make_request(struct request_queue *q, struct bio *bio)
 	struct search *s;
 	struct bcache_device *d = bio->bi_bdev->bd_disk->private_data;
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
-	int cpu, rw = bio_data_dir(bio);
+	int rw = bio_data_dir(bio);
 
-	cpu = part_stat_lock();
-	part_stat_inc(cpu, &d->disk->part0, ios[rw]);
-	part_stat_add(cpu, &d->disk->part0, sectors[rw], bio_sectors(bio));
-	part_stat_unlock();
+	generic_start_io_acct(rw, bio_sectors(bio), &d->disk->part0);
 
 	bio->bi_bdev = dc->bdev;
 	bio->bi_iter.bi_sector += dc->sb.data_offset;
@@ -1073,12 +1074,9 @@ static void flash_dev_make_request(struct request_queue *q, struct bio *bio)
 	struct search *s;
 	struct closure *cl;
 	struct bcache_device *d = bio->bi_bdev->bd_disk->private_data;
-	int cpu, rw = bio_data_dir(bio);
+	int rw = bio_data_dir(bio);
 
-	cpu = part_stat_lock();
-	part_stat_inc(cpu, &d->disk->part0, ios[rw]);
-	part_stat_add(cpu, &d->disk->part0, sectors[rw], bio_sectors(bio));
-	part_stat_unlock();
+	generic_start_io_acct(rw, bio_sectors(bio), &d->disk->part0);
 
 	s = search_alloc(bio, d);
 	cl = &s->cl;
@@ -1094,6 +1092,7 @@ static void flash_dev_make_request(struct request_queue *q, struct bio *bio)
 		continue_at_nobarrier(&s->cl,
 				      flash_dev_nodata,
 				      bcache_wq);
+		return;
 	} else if (rw) {
 		bch_keybuf_check_overlapping(&s->iop.c->moving_gc_keys,
 					&KEY(d->id, bio->bi_iter.bi_sector, 0),
